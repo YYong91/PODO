@@ -21,6 +21,17 @@ if __name__ == "__main__":
         text = transcribe(filename)
 
         if text.strip():
+            if "요약" in text:
+                from storage.db import get_recent_logs
+
+                logs = get_recent_logs(days=7)
+                log_text = "\n".join([f"- {log[2]}" for log in logs]) or "최근 기록이 없어요."
+
+                prompt = f"다음은 최근 1주일 간의 아기 성장 기록입니다:\n{log_text}\n이 내용을 부모님께 요약해서 따뜻하게 말해 주세요."
+                summary = get_gpt_response(prompt)
+                speak(summary)
+                continue
+
             if any(kw in text.lower() for kw in ["여기까지 마무리", "끝낼게"]):
                 speak("알겠어요. 오늘도 수고 많으셨어요. 다음에 또 이야기해요 😊")
                 break
