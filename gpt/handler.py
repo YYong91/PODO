@@ -33,3 +33,42 @@ def get_log_summary_or_none(user_input):
 
     result = response.choices[0].message.content.strip()
     return None if result == "NONE" else result
+
+
+def is_about_chaeyi(text):
+    """
+    입력된 텍스트가 채이에 대한 내용인지 GPT로 판단
+    관련 있다면 True, 아니면 False 반환
+    """
+    prompt = f"""
+사용자의 발화가 '채이'라는 아이의 성장, 상태, 식사, 감정, 육아 등과 관련된 이야기라면 "YES"라고만 답하고,
+그 외 일반적인 질문이나 일상 대화면 "NO"라고만 답하세요.
+
+입력:
+{text}
+"""
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    result = response.choices[0].message.content.strip().upper()
+    return result == "YES"
+
+
+def get_conversational_response(text):
+    """
+    사용자의 질문에 간단히 대답하되, '자세히' 요청이 있으면 자세히 설명
+    """
+    base_prompt = "사용자의 질문에 간단하고 핵심적인 답변을 해 주세요."
+    if any(kw in text for kw in ["자세히", "상세하게", "더 알려줘"]):
+        base_prompt = "사용자의 질문에 자세하고 구체적인 답변을 해 주세요."
+
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": base_prompt},
+            {"role": "user", "content": text}
+        ]
+    )
+    return response.choices[0].message.content

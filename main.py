@@ -1,7 +1,7 @@
 from utils.path import generate_recording_filename
 from voice.input import record_until_enter, transcribe
 from voice.output import speak
-from gpt.handler import get_gpt_response
+from gpt.handler import get_gpt_response, is_about_chaeyi, get_conversational_response
 from storage.db import init_db, save_log
 from gpt.handler import get_log_summary_or_none
 import os
@@ -37,12 +37,22 @@ if __name__ == "__main__":
                 speak("알겠어요. 오늘도 수고 많으셨어요. 다음에 또 이야기해요 😊")
                 break
 
-            response = get_gpt_response(text)
+            if is_about_chaeyi(text):
+                # 기존 채이 관련 응답
+                response = get_gpt_response(text)
+            else:
+                # 일반 궁금증 → 간단 or 자세히 처리
+                response = get_conversational_response(text)
             speak(response)
+
             # GPT 응답 끝난 뒤
-            summary = get_log_summary_or_none(text)
-            if summary:
-                save_log(text, summary)
-                print(f"📌 기록 저장됨: {summary}")
+            if is_about_chaeyi(text):
+                summary = get_log_summary_or_none(text)
+                if summary:
+                    save_log(text, summary)
+                    speak("기록할게요. 성장일지에 저장했어요 😊")
+                    print(f"📌 기록 저장됨: {summary}")
+            else:
+                print("📝 일반 대화이므로 저장하지 않았어요.")
         else:
             print("❗ 아무 말도 인식되지 않았어요. 다시 시도해 주세요.")
