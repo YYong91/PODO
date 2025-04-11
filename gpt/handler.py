@@ -2,6 +2,8 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import os
 
+from config import BABY_NAME
+
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -35,13 +37,9 @@ def get_log_summary_or_none(user_input):
     return None if result == "NONE" else result
 
 
-def is_about_chaeyi(text):
-    """
-    입력된 텍스트가 채이에 대한 내용인지 GPT로 판단
-    관련 있다면 True, 아니면 False 반환
-    """
+def is_about_baby(text):
     prompt = f"""
-사용자의 발화가 '채이'라는 아이의 성장, 상태, 식사, 감정, 육아 등과 관련된 이야기라면 "YES"라고만 답하고,
+사용자의 발화가 '{BABY_NAME}'라는 아이의 성장, 상태, 식사, 감정 등과 관련된 이야기라면 "YES"라고만 답하고,
 그 외 일반적인 질문이나 일상 대화면 "NO"라고만 답하세요.
 
 입력:
@@ -51,7 +49,6 @@ def is_about_chaeyi(text):
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt}]
     )
-
     result = response.choices[0].message.content.strip().upper()
     return result == "YES"
 

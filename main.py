@@ -1,20 +1,17 @@
+from config import BABY_NAME
 from utils.path import generate_recording_filename
 from voice.input import record_until_enter, transcribe
 from voice.output import speak
-from gpt.handler import get_gpt_response, is_about_chaeyi, get_conversational_response
+from gpt.handler import get_gpt_response, is_about_baby, get_conversational_response
 from storage.db import init_db, save_log
 from gpt.handler import get_log_summary_or_none
-import os
-import uuid
 
 # 앱 시작 시 초기화
-os.makedirs("recordings", exist_ok=True)
-os.makedirs("data", exist_ok=True)
 init_db()
 
 if __name__ == "__main__":
     print("🍇 포도와 대화를 시작합니다!")
-    print("예: 오늘 T가 혼자 앉았어 / 이번 주 요약해줘 / 여기까지 마무리 / 끝낼게 / 그 외 기타 질문들")
+    print(f"예: 오늘 {BABY_NAME}가 혼자 앉았어 / 이번 주 요약해줘 / 마무리 / 끝낼게 / 그 외 기타 질문들")
 
     while True:
         filename = generate_recording_filename()
@@ -33,11 +30,12 @@ if __name__ == "__main__":
                 speak(summary)
                 continue
 
-            if any(kw in text.lower() for kw in ["여기까지 마무리", "끝낼게"]):
+            if any(kw in text.lower() for kw in ["마무리", "끝낼게"]):
                 speak("알겠어요. 오늘도 수고 많으셨어요. 다음에 또 이야기해요 😊")
                 break
 
-            if is_about_chaeyi(text):
+            about_baby = is_about_baby(text)
+            if about_baby:
                 # 기존 채이 관련 응답
                 response = get_gpt_response(text)
             else:
@@ -46,7 +44,7 @@ if __name__ == "__main__":
             speak(response)
 
             # GPT 응답 끝난 뒤
-            if is_about_chaeyi(text):
+            if about_baby:
                 summary = get_log_summary_or_none(text)
                 if summary:
                     save_log(text, summary)
