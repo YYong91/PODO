@@ -173,5 +173,8 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# 음성 녹음 파일
-*.wav
+# 음성 파일
+recordings/*.wav
+
+# SQLite DB
+data/*.db
