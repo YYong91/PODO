@@ -1,7 +1,6 @@
 import sqlite3
 from datetime import date, datetime, timedelta
-
-DB_PATH = "data/growth_log.db"
+from config import DB_PATH
 
 
 def init_db():

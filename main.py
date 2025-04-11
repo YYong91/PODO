@@ -1,3 +1,4 @@
+from utils.path import generate_recording_filename
 from voice.input import record_until_enter, transcribe
 from voice.output import speak
 from gpt.handler import get_gpt_response
@@ -13,10 +14,10 @@ init_db()
 
 if __name__ == "__main__":
     print("🍇 포도와 대화를 시작합니다!")
-    print("엔터를 누르면 녹음 시작 → 다시 엔터를 누르면 응답을 들을 수 있어요.")
+    print("예: 오늘 T가 혼자 앉았어 / 이번 주 요약해줘 / 여기까지 마무리 / 끝낼게 / 그 외 기타 질문들")
 
     while True:
-        filename = f"recordings/record_{uuid.uuid4().hex[:6]}.wav"
+        filename = generate_recording_filename()
         record_until_enter(filename)
         text = transcribe(filename)
 

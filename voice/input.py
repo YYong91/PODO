@@ -1,13 +1,10 @@
 import sounddevice as sd
 import scipy.io.wavfile as wav
-from keyboard import stop_recording
 from openai import OpenAI
 from dotenv import load_dotenv
 from pynput import keyboard
 import os
-import uuid
 import numpy as np
-import threading
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))

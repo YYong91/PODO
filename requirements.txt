@@ -1,6 +1,7 @@
-openai
-python-dotenv
-pyttsx3
-sounddevice
-scipy
-pynput
+openai~=1.70.0
+python-dotenv~=1.1.0
+pyttsx3~=2.98
+sounddevice~=0.5.1
+scipy~=1.15.2
+pynput~=1.8.1
+numpy~=2.2.4
