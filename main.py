@@ -2,7 +2,7 @@ from config import BABY_NAME
 from utils.path import generate_recording_filename
 from voice.input import record_until_enter, transcribe
 from voice.output import speak
-from gpt.handler import get_gpt_response, is_about_baby, get_conversational_response
+from gpt.handler import get_gpt_response, is_about_baby, get_conversational_response, get_short_empathetic_response
 from storage.db import init_db, save_log
 from gpt.handler import get_log_summary_or_none
 
@@ -48,8 +48,11 @@ if __name__ == "__main__":
                 summary = get_log_summary_or_none(text)
                 if summary:
                     save_log(text, summary)
-                    speak("기록할게요. 성장일지에 저장했어요 😊")
+                    response = f"{get_short_empathetic_response(text)}. 잘 기록해둘게요"
+                    speak(response)
                     print(f"📌 기록 저장됨: {summary}")
+                else:
+                    ...
             else:
                 print("📝 일반 대화이므로 저장하지 않았어요.")
         else:

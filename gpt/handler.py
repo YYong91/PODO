@@ -69,3 +69,19 @@ def get_conversational_response(text):
         ]
     )
     return response.choices[0].message.content
+
+
+def get_short_empathetic_response(user_input):
+    # 예: GPT에게 짧은 공감 표현 요청
+    prompt = f"""
+사용자의 다음 말을 듣고, 성장 기록으로 저장하는 상황입니다.
+따뜻하고 짧은 한 문장으로 공감 표현을 해 주세요.
+
+입력:
+{user_input}
+"""
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content.strip()
