@@ -1,56 +1,58 @@
-import sounddevice as sd
-import scipy.io.wavfile as wav
-from openai import OpenAI
-from dotenv import load_dotenv
-from pynput import keyboard
-import os
+import torch
 import numpy as np
+import sounddevice as sd
+import torchaudio
+from voice.hotword import SileroVad
+import io
+from pydub import AudioSegment
 
-load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+fs = 16000
+vad = SileroVad(sample_rate=fs)
 
-recording = []
-stream = None
-fs = 44100
+def listen_until_silence():
+    print("🎧 포도가 말소리를 감지하고 있어요 (silero-vad)...")
 
-
-def record_until_enter(filename):
-    global recording, stream
     recording = []
+    silence_frames = 0
+    speaking = False
 
-    def callback(indata, frames, time_info, status):
-        recording.append(indata.copy())
+    stream = sd.InputStream(samplerate=fs, channels=1, dtype='float32', blocksize=512)
+    stream.start()
 
-    def on_press(key):
-        nonlocal is_recording
-        if key == keyboard.Key.enter:
-            if not is_recording:
-                print("🎙️ 녹음 시작...")
-                is_recording = True
-                stream.start()
-            else:
-                print("⏹️ 녹음 종료")
-                stream.stop()
-                return False  # 리스너 종료
+    try:
+        while True:
+            frame, _ = stream.read(512)  # 약 32ms
+            mono = np.squeeze(frame)
+            tensor = torch.from_numpy(mono)
 
-    is_recording = False
+            speech_prob = vad(tensor)
+            is_speech = speech_prob > 0.5
 
-    stream = sd.InputStream(samplerate=fs, channels=1, dtype='int16', callback=callback)
-    print("⏺️ 엔터 누르면 녹음 시작 → 다시 엔터 누르면 종료됩니다.")
+            if is_speech:
+                recording.append(mono)
+                silence_frames = 0
+                speaking = True
+            elif speaking:
+                silence_frames += 1
+                if silence_frames > 10:  # 약 0.3초 침묵
+                    break
+    finally:
+        stream.stop()
+        stream.close()
 
-    with keyboard.Listener(on_press=on_press) as listener:
-        listener.join()
+    if not recording:
+        return None
 
-    all_data = np.concatenate(recording, axis=0)
-    wav.write(filename, fs, all_data)
-    print("✅ 녹음 저장 완료:", filename)
+    full_audio = np.concatenate(recording)
+    buffer = io.BytesIO()
 
-
-def transcribe(filename):
-    with open(filename, "rb") as audio_file:
-        transcript = client.audio.transcriptions.create(
-            model="whisper-1",
-            file=audio_file
-        )
-    print("📝 인식된 텍스트:", transcript.text)
-    return transcript.text
+    audio_segment = AudioSegment(
+        data=(full_audio * 32767).astype("int16").tobytes(),
+        sample_width=2,
+        frame_rate=fs,
+        channels=1
+    )
+    audio_segment.export(buffer, format="wav")
+    buffer.seek(0)
+    buffer.name = "speech.wav"
+    return buffer

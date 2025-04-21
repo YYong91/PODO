@@ -1,7 +1,7 @@
 import pyttsx3
 
 engine = pyttsx3.init()
-engine.setProperty("rate", 175)  # 말 속도 조절
+engine.setProperty("rate", 175)
 
 
 def speak(text, prefix="포도"):

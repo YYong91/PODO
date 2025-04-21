@@ -1,87 +1,60 @@
+import json
 from openai import OpenAI
-from dotenv import load_dotenv
-import os
-
 from config import BABY_NAME
 
-load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI()
 
 
-def get_gpt_response(text):
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "당신은 따뜻하고 부드러운 육아 도우미 포도입니다."},
-            {"role": "user", "content": text}
-        ]
-    )
-    return response.choices[0].message.content
-
-
-def get_log_summary_or_none(user_input):
+def analyze_user_input(user_input):
     prompt = f"""
-사용자가 다음과 같은 육아 관련 말을 했을 때, 이 내용이 아기의 성장 기록으로 저장할 만한 내용이라면 짧게 요약해서 출력하고,
-기록할 만한 내용이 아니라면 "NONE"이라고만 답해주세요.
+사용자의 발화에 대해 아래 항목을 JSON 형식으로 응답하세요.
+
+- "should_save": '{BABY_NAME}'의 성장, 감정, 건강, 식사, 수면 등과 관련된 내용이면 "YES", 그렇지 않으면 "NO"
+- "summary": 저장할 경우 간결한 기록용 요약 문장, 저장하지 않는 경우 "NONE"
+- "response": 짧고 따뜻한 공감 한 마디
+- "tags": 관련 키워드 리스트 (예: 성장, 식사 등)
+- "mood": 감정 키워드 리스트 (예: 기쁨, 감동 등)
 
 사용자 발화:
 {user_input}
 """
 
-    response = client.chat.completions.create(
+    completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt}]
     )
 
-    result = response.choices[0].message.content.strip()
-    return None if result == "NONE" else result
+    raw = completion.choices[0].message.content.strip()
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        print("⚠️ GPT 응답이 JSON 형식이 아님:", raw)
+        return {
+            "response": raw,
+            "should_save": "NO",
+            "summary": "NONE",
+            "tags": [],
+            "mood": []
+        }
 
 
-def is_about_baby(text):
+def summarize_logs(summaries: list[str]):
+    if not summaries:
+        return "최근 일주일 간의 기록이 없어요."
+
+    joined = "\n".join(f"- {s}" for s in summaries)
     prompt = f"""
-사용자의 발화가 '{BABY_NAME}'라는 아이의 성장, 상태, 식사, 감정 등과 관련된 이야기라면 "YES"라고만 답하고,
-그 외 일반적인 질문이나 일상 대화면 "NO"라고만 답하세요.
+다음은 지난 1주일 간 아이의 성장 기록 요약입니다:
 
-입력:
-{text}
+{joined}
+
+이 내용을 부모님께 따뜻하게 전달하듯 요약해 주세요.
 """
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    result = response.choices[0].message.content.strip().upper()
-    return result == "YES"
 
-
-def get_conversational_response(text):
-    """
-    사용자의 질문에 간단히 대답하되, '자세히' 요청이 있으면 자세히 설명
-    """
-    base_prompt = "사용자의 질문에 간단하고 핵심적인 답변을 해 주세요."
-    if any(kw in text for kw in ["자세히", "상세하게", "더 알려줘"]):
-        base_prompt = "사용자의 질문에 자세하고 구체적인 답변을 해 주세요."
-
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": base_prompt},
-            {"role": "user", "content": text}
-        ]
-    )
-    return response.choices[0].message.content
-
-
-def get_short_empathetic_response(user_input):
-    # 예: GPT에게 짧은 공감 표현 요청
-    prompt = f"""
-사용자의 다음 말을 듣고, 성장 기록으로 저장하는 상황입니다.
-따뜻하고 짧은 한 문장으로 공감 표현을 해 주세요.
-
-입력:
-{user_input}
-"""
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt}]
     )
     return response.choices[0].message.content.strip()
+

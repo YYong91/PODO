@@ -1,59 +1,51 @@
-from config import BABY_NAME
-from utils.path import generate_recording_filename
-from voice.input import record_until_enter, transcribe
+from voice.hotword import wait_for_hotword
+from voice.input import listen_until_silence
 from voice.output import speak
-from gpt.handler import get_gpt_response, is_about_baby, get_conversational_response, get_short_empathetic_response
-from storage.db import init_db, save_log
-from gpt.handler import get_log_summary_or_none
+from gpt.handler import analyze_user_input, summarize_logs
+from storage.db import init_db, save_log, get_recent_logs
+from openai import OpenAI
 
-# 앱 시작 시 초기화
+print("🎧 포도와 대화를 시작합니다! 가볍게 말 걸어보세요.")
 init_db()
+client = OpenAI()
 
-if __name__ == "__main__":
-    print("🍇 포도와 대화를 시작합니다!")
-    print(f"예: 오늘 {BABY_NAME}가 혼자 앉았어 / 이번 주 요약해줘 / 마무리 / 끝낼게 / 그 외 기타 질문들")
+while True:
+    wait_for_hotword()  # 🔔 "포도야" 감지되면 다음 진행
 
-    while True:
-        filename = generate_recording_filename()
-        record_until_enter(filename)
-        text = transcribe(filename)
+    audio_buffer = listen_until_silence()
+    if audio_buffer is None:
+        continue
 
-        if text.strip():
-            if "요약" in text:
-                from storage.db import get_recent_logs
+    text = client.audio.transcriptions.create(
+        model="whisper-1",
+        file=audio_buffer
+    ).text
 
-                logs = get_recent_logs(days=7)
-                log_text = "\n".join([f"- {log[2]}" for log in logs]) or "최근 기록이 없어요."
+    print(f"📝 인식된 말: {text}")
 
-                prompt = f"다음은 최근 1주일 간의 아기 성장 기록입니다:\n{log_text}\n이 내용을 부모님께 요약해서 따뜻하게 말해 주세요."
-                summary = get_gpt_response(prompt)
-                speak(summary)
-                continue
+    if not text.strip():
+        continue
 
-            if any(kw in text.lower() for kw in ["마무리", "끝낼게"]):
-                speak("알겠어요. 오늘도 수고 많으셨어요. 다음에 또 이야기해요 😊")
-                break
+    if any(kw in text for kw in ["끝낼게", "여기까지 마무리"]):
+        speak("오늘도 수고 많으셨어요. 다음에 또 이야기해요 😊")
+        break
 
-            about_baby = is_about_baby(text)
-            if about_baby:
-                # 기존 채이 관련 응답
-                response = get_gpt_response(text)
-            else:
-                # 일반 궁금증 → 간단 or 자세히 처리
-                response = get_conversational_response(text)
-            speak(response)
+    if any(kw in text for kw in ["이번 주 요약", "최근 기록", "일주일 정리"]):
+        summaries = get_recent_logs(days=7)
+        summary_text = summarize_logs(summaries)
+        speak(summary_text)
+        continue
 
-            # GPT 응답 끝난 뒤
-            if about_baby:
-                summary = get_log_summary_or_none(text)
-                if summary:
-                    save_log(text, summary)
-                    response = f"{get_short_empathetic_response(text)}. 잘 기록해둘게요"
-                    speak(response)
-                    print(f"📌 기록 저장됨: {summary}")
-                else:
-                    ...
-            else:
-                print("📝 일반 대화이므로 저장하지 않았어요.")
-        else:
-            print("❗ 아무 말도 인식되지 않았어요. 다시 시도해 주세요.")
+    result = analyze_user_input(text)
+    speak(f"기록할게요. {result['response']}" if result["should_save"] == "YES" else result["response"])
+
+    if result["should_save"] == "YES":
+        save_log(
+            raw_text=text,
+            summary=result["summary"],
+            tags=result.get("tags", []),
+            mood=result.get("mood", [])
+        )
+        print(f"📌 기록 저장됨: {result['summary']} | 태그: {result['tags']} | 분위기: {result['mood']}")
+    else:
+        print("📝 일반 대화로 저장하지 않았어요.")

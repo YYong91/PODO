@@ -9,12 +9,12 @@ def init_db():
             conn.executescript(f.read())
 
 
-def save_log(raw_text, summary):
+def save_log(raw_text, summary, tags=None, mood=None):
     with sqlite3.connect(DB_PATH) as conn:
         today = date.today().isoformat()
         conn.execute(
-            "INSERT INTO growth_logs (date, raw_text, summary) VALUES (?, ?, ?)",
-            (today, raw_text, summary)
+            "INSERT INTO growth_logs (date, raw_text, summary, tags, mood) VALUES (?, ?, ?, ?, ?)",
+            (today, raw_text, summary, ",".join(tags or []), ",".join(mood or []))
         )
         conn.commit()
 
